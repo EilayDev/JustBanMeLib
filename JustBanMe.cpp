@@ -14,72 +14,11 @@ DWORD GetProcessID(LPCSTR processName) {
 	}
 }
 LPVOID GetModuleBaseAddressW(DWORD processID, LPCWCHAR moduleName) {
-	HANDLE snapshot;
-	MODULEENTRY32W pe32;
-	snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, processID);
-	if (snapshot == INVALID_HANDLE_VALUE)
-	{
-		return 0;
-	}
-	pe32.dwSize = sizeof(MODULEENTRY32W);
-
-	if (Module32FirstW(snapshot, &pe32)) {
-		if (!wcscmp(moduleName, pe32.szModule)) {
-			CloseHandle(snapshot);
-			return (LPVOID)pe32.modBaseAddr;
-		}
-	}
-	else {
-		return 0;
-	}
-
-	while (Module32NextW(snapshot, &pe32)) {
-		if (!wcscmp(moduleName, pe32.szModule)) {
-			CloseHandle(snapshot);
-			return (LPVOID)pe32.modBaseAddr;
-		}
-	}
-	CloseHandle(snapshot);
-	return 0;
+	return (LPVOID)GetModuleW(processID, moduleName).dwBase;
 }
 
 LPVOID GetModuleBaseAddressA(DWORD processID, LPCSTR moduleName) {
-	HANDLE snapshot;
-	MODULEENTRY32W pe32;
-	snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, processID);
-	if (snapshot == INVALID_HANDLE_VALUE)
-	{
-		return NULL;
-	}
-	pe32.dwSize = sizeof(MODULEENTRY32);
-	LPSTR convertedStr = new CHAR[MAX_MODULE_NAME32];
-	
-	if (Module32FirstW(snapshot, &pe32)) {
-		
-		wcstombs(convertedStr, pe32.szModule, wcslen(pe32.szModule) + 1);
-		
-		if (!strcmp(moduleName, convertedStr)) {
-			CloseHandle(snapshot);
-			delete [] convertedStr;
-			return (LPVOID)pe32.modBaseAddr;
-		}
-	}
-	else {
-		CloseHandle(snapshot);
-		return NULL;
-	}
-
-	while (Module32NextW(snapshot, &pe32)) {
-		wcstombs(convertedStr, pe32.szModule, wcslen(pe32.szModule)+1);
-		if (!strcmp(moduleName, convertedStr)) {
-			delete [] convertedStr;
-			CloseHandle(snapshot);
-			return (LPVOID)pe32.modBaseAddr;
-		}
-	}
-	CloseHandle(snapshot);
-	delete[] convertedStr;
-	return NULL;
+	return (LPVOID)GetModuleA(processID, moduleName).dwBase;
 }
 
 HANDLE GetProcessHandle(DWORD processID, DWORD dwDesiredAccess){
@@ -102,14 +41,13 @@ bool PointerChain(HANDLE handle, LPVOID moduleBase, DWORD offset_array[], DWORD*
 	}
 }
 
-std::vector<LPVOID> signatureScan(HANDLE hProcess, LPVOID baseAddress, size_t moduleSize, const BYTE signature[], const size_t numOfItems) {
-	PBYTE moduleData = new BYTE[moduleSize];
+std::vector<LPVOID> signatureScan(HANDLE hProcess, module Module, const BYTE signature[], const size_t numOfItems) {
+	PBYTE moduleData = new BYTE[Module.dwSize];
 	std::vector<LPVOID> arrayOfHits;
-	if (!ReadProcessMemory(hProcess, baseAddress, moduleData, moduleSize, 0)) {
+	if (!ReadProcessMemory(hProcess, (LPVOID)Module.dwBase, moduleData, Module.dwSize, 0)) {
 		return (std::vector<LPVOID>)0;
 	}
-
-	for (DWORD i = 0; i < moduleSize; i++) {
+	for (DWORD i = 0; i < Module.dwSize; i++) {
 		if (moduleData[i] == signature[0]) { // if certain byte equals to first byte in signature
 			for (DWORD j = 1; j < numOfItems; j++) {
 				if (signature[j] == '?') {
@@ -121,12 +59,11 @@ std::vector<LPVOID> signatureScan(HANDLE hProcess, LPVOID baseAddress, size_t mo
 				}
 				if (j == numOfItems - 1) {
 				ret:
-					arrayOfHits.push_back((LPVOID)((_DWORD)baseAddress + i));
+					arrayOfHits.push_back((LPVOID)(Module.dwBase + i));
 					break;
 				}
 			}
 		}
-
 	}
 	return arrayOfHits;
 }

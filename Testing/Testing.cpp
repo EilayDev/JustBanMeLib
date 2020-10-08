@@ -11,7 +11,7 @@ int main()
 	HANDLE handle = GetProcessHandle(processID);
 	module TargetModule = GetModule(processID, "VictimProgram.exe");
 	const BYTE byte_array[] = { 0x1, 0x2, '?', 0x4, 0x5, 0x6 };
-	std::vector<LPVOID> signatureAddr = signatureScan(handle, (LPVOID)TargetModule.dwBase, TargetModule.dwSize, byte_array, sizeof(byte_array));
+	std::vector<LPVOID> signatureAddr = signatureScan(handle, TargetModule, byte_array, sizeof(byte_array));
 	for (int i = 0; i < signatureAddr.size(); i++) {
 		std::cout << std::hex << signatureAddr[i] << "\n";
 	}
