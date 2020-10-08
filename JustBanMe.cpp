@@ -45,6 +45,7 @@ std::vector<LPVOID> signatureScan(HANDLE hProcess, module Module, const BYTE sig
 	PBYTE moduleData = new BYTE[Module.dwSize];
 	std::vector<LPVOID> arrayOfHits;
 	if (!ReadProcessMemory(hProcess, (LPVOID)Module.dwBase, moduleData, Module.dwSize, 0)) {
+		delete[] moduleData;
 		return (std::vector<LPVOID>)0;
 	}
 	for (DWORD i = 0; i < Module.dwSize; i++) {
@@ -65,6 +66,7 @@ std::vector<LPVOID> signatureScan(HANDLE hProcess, module Module, const BYTE sig
 			}
 		}
 	}
+	delete[] moduleData;
 	return arrayOfHits;
 }
 
