@@ -21,8 +21,14 @@
 #else
 #define _DWORD DWORD32
 #endif
-struct module {
+extern struct module {
 	_DWORD dwSize, dwBase;
+};
+
+template<typename T>
+struct ChainResult {
+	LPVOID finalAddress;
+	T finalValue;
 };
 
 extern LPVOID GetModuleBaseAddressA(DWORD processID, LPCSTR moduleName);
@@ -31,7 +37,8 @@ extern module GetModuleW(DWORD processID, LPCWCHAR moduleName);
 extern module GetModuleA(DWORD processID, LPCSTR moduleName);
 extern DWORD GetProcessID(LPCSTR processName);
 extern HANDLE GetProcessHandle(DWORD processID, DWORD dwDesiredAccess = PROCESS_ALL_ACCESS);
-extern bool PointerChain(HANDLE handle, LPVOID moduleBase, DWORD offset_array[], DWORD* finalValue, LPVOID* finalAddress);
+extern ChainResult<class T> PointerChain(HANDLE handle, LPVOID moduleBase, const DWORD offset_array[],const size_t arrayItems);
 extern std::vector<LPVOID> signatureScan(HANDLE hProcess, module Module, const BYTE signature[], const size_t numOfItems);
+
 
 #endif
