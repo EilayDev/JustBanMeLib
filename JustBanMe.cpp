@@ -13,29 +13,31 @@ DWORD GetProcessID(LPCSTR processName) {
 		return procID;
 	}
 }
-LPVOID GetModuleBaseAddressW(DWORD processID, LPCWCHAR moduleName) {
-	return (LPVOID)GetModuleW(processID, moduleName).dwBase;
+ADDRESS GetModuleBaseAddressW(DWORD processID, LPCWCHAR moduleName) {
+	return (ADDRESS)GetModuleW(processID, moduleName).dwBase;
 }
 
-LPVOID GetModuleBaseAddressA(DWORD processID, LPCSTR moduleName) {
-	return (LPVOID)GetModuleA(processID, moduleName).dwBase;
+ADDRESS GetModuleBaseAddressA(DWORD processID, LPCSTR moduleName) {
+	return (ADDRESS)GetModuleA(processID, moduleName).dwBase;
 }
 
 HANDLE GetProcessHandle(DWORD processID, DWORD dwDesiredAccess){
 	HANDLE handle = OpenProcess(dwDesiredAccess, false, processID);
 	return (!OpenProcess) ? 0 : handle;
 }
+bool PointerChain(HANDLE handle, ADDRESS moduleBase, DWORD offset_array[], DWORD* finalValue, LPVOID* finalAddress) {
+	size_t sizeOfArray = sizeof(offset_array) * 2;
+	ADDRESS address = 0;
+	
+	if (!ReadProcessMemory(handle, (LPVOID)(moduleBase + (DWORD)offset_array[0]), &address, sizeof(address), 0)) { return false; }
 
-LPVOID PointerChain(HANDLE handle, LPVOID moduleBase, const DWORD offset_array[],const size_t arrayItems) {
-	LPVOID address = nullptr;
-
-	if (!ReadProcessMemory(handle, (LPVOID)((_DWORD)moduleBase + (DWORD)offset_array[0]), &address, sizeof(address), 0)) { return NULL; }
-
-	for (int i = 1; i <= arrayItems; i++) {
-		if (i == arrayItems) {
-			return address;
+	for (int i = 1; i < (sizeOfArray); i++) {
+		if (i == (sizeOfArray - 1)) {
+			if (!ReadProcessMemory(handle, (LPVOID)(address + (DWORD)offset_array[i]), &finalValue, sizeof(address), 0)) { return false; }
+			*(LPVOID*)finalAddress = (LPVOID)(address + offset_array[i]);
+			return true;
 		}
-		if (!ReadProcessMemory(handle, (LPVOID)((_DWORD)address + (DWORD)offset_array[i]), &address, sizeof(address), 0)) { return NULL; }
+		if (!ReadProcessMemory(handle, (LPVOID)(address + (DWORD)offset_array[i]), &address, sizeof(address), 0)) { return false; }
 	}
 }
 
