@@ -1,12 +1,21 @@
 #include "JustBanMe.h"
 
-DWORD GetProcessID(LPCSTR processName) {
-	HWND hwnd = FindWindowA(NULL, processName);
+DWORD GetProcessIDByWindow(LPCSTR windowName) {
+	HWND hwnd = FindWindowA(NULL, windowName);
 	if (!hwnd) {
 		return false;
 	}
 	DWORD procID;
 	if (!GetWindowThreadProcessId(hwnd, &procID)) {
+		return false;
+	}
+	else {
+		return procID;
+	}
+}
+DWORD GetProcessIDByHandle(HANDLE handle){
+	DWORD procID;
+	if (!GetWindowThreadProcessId((HWND)handle, &procID)) {
 		return false;
 	}
 	else {
@@ -25,6 +34,7 @@ HANDLE GetProcessHandle(DWORD processID, DWORD dwDesiredAccess){
 	HANDLE handle = OpenProcess(dwDesiredAccess, false, processID);
 	return (!OpenProcess) ? 0 : handle;
 }
+
 bool PointerChain(HANDLE handle, ADDRESS moduleBase, DWORD offset_array[], DWORD* finalValue, LPVOID* finalAddress) {
 	size_t sizeOfArray = sizeof(offset_array) * 2;
 	ADDRESS address = 0;
@@ -146,4 +156,43 @@ module GetModuleA(DWORD processID, LPCSTR moduleName) {
 	CloseHandle(snapshot);
 	delete[] convertedStr;
 	return _module = { NULL };
+}
+
+HANDLE GetProcessHandleByName(LPCSTR pName, DWORD dwDesiredAccess) {
+	PROCESSENTRY32 entry;
+    entry.dwSize = sizeof(PROCESSENTRY32);
+
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
+
+    if (Process32First(snapshot, &entry) == TRUE)
+    {
+        while (Process32Next(snapshot, &entry) == TRUE)
+        {
+            if (stricmp(entry.szExeFile, pName) == 0)
+            {  
+                return OpenProcess(dwDesiredAccess, FALSE, entry.th32ProcessID);
+            }
+        }
+    }
+}
+
+DWORD GetProcessIDByName(LPCSTR pName){
+	PROCESSENTRY32 entry;
+    entry.dwSize = sizeof(PROCESSENTRY32);
+
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
+
+    if (Process32First(snapshot, &entry) == TRUE)
+    {
+        while (Process32Next(snapshot, &entry) == TRUE)
+        {
+            if (stricmp(entry.szExeFile, pName) == 0)
+            {  
+				CloseHandle(snapshot);
+				return entry.th32ProcessID;
+            }
+        }
+    }
+	CloseHandle(snapshot);
+	return 0;
 }
